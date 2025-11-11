@@ -1,7 +1,7 @@
 # 🚀 Telegram Vapor Bot — Infrastructure Demo
 
 ![CI/CD](https://github.com/MKIMik/telegramvaporswiftbot-infrademo/actions/workflows/deploy.yml/badge.svg)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/MKIMik/telegramvaporswiftbot-infrademo/deploy.yml?label=CI/CD%20Deploy&logo=githubactions&style=for-the-badge)
+![Demo GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/MKIMik/telegramvaporswiftbot-infrademo/deploy.yml?label=CI/CD%20Deploy&logo=githubactions&style=for-the-badge)
 ![Docker](https://img.shields.io/badge/docker-ready-blue?logo=docker&style=for-the-badge)
 ![Redis](https://img.shields.io/badge/redis-active-red?logo=redis&style=for-the-badge)
 ![Swift Vapor](https://img.shields.io/badge/swift%20vapor-backend-orange?logo=swift&style=for-the-badge)
