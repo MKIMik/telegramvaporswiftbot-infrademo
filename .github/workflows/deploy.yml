@@ -4,15 +4,50 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: "Run in demo mode (no SSH connection)"
+        required: false
+        default: "true"
+
+env:
+  DEMO_MODE: ${{ github.event.inputs.demo || 'false' }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: 🧾 Checkout repo
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH (tmux-managed)
+      # ───────────────────────────────────────────────
+      # 🧱 DEMO MODE (симулированный деплой)
+      # ───────────────────────────────────────────────
+      - name: 🚀 Simulated Deploy (Demo Mode)
+        if: env.DEMO_MODE == 'true'
+        run: |
+          echo "🧱 DEMO MODE ENABLED"
+          echo "This run will simulate the deploy process without SSH."
+          echo ""
+          echo "1️⃣ Checking out repository..."
+          sleep 1
+          echo "2️⃣ Building containers (simulated)..."
+          sleep 1
+          echo "3️⃣ Redis healthcheck: ✅ PONG"
+          echo "4️⃣ Bot healthcheck: ✅ OK (simulated)"
+          echo "5️⃣ Containers: telegram_bot ✅, redis ✅"
+          echo ""
+          echo "📨 Sending simulated Telegram message..."
+          echo "✅ Deployment complete (demo mode)"
+          echo ""
+          echo "🎉 CI/CD Simulation finished successfully!"
+
+      # ───────────────────────────────────────────────
+      # 🧩 REAL MODE (реальный деплой с SSH)
+      # ───────────────────────────────────────────────
+      - name: 🧩 Deploy via SSH (tmux-managed)
+        if: env.DEMO_MODE == 'false'
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -20,7 +55,6 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           timeout: 60m
           script: |
-            # время начала деплоя
             START_TIME=$(date +%s)
             COMMIT="${{ github.sha }}"
             COMMIT_SHORT=${COMMIT:0:7}
@@ -82,17 +116,14 @@ jobs:
               sleep 20
             done
 
-            # ← ЗДЕСЬ считаем длительность
             END=$(date +%s)
-            DURATION=$((END - START))
+            DURATION=$((END - START_TIME))
             MINS=$(( DURATION / 60 ))
             SECS=$(( DURATION % 60 ))
 
-            # собираем статусы контейнеров
             DOCKER_STATUS=$(docker compose ps --format '{{.Name}} {{.State}}' \
               | sed 's/running/✅ running/; s/exited/❌ exited/; s/restarting/🔁 restarting/; s/created/🍼 created/; s/paused/⏸️ paused/; s/unknown/⚙️ unknown/')
 
-            # формируем сообщение
             MSG=$(cat <<EOF
             ✅ *Deployment complete!*
 
@@ -110,7 +141,6 @@ jobs:
             EOF
             )
 
-            # отправка в Telegram как было
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.DEPLOY_NOTIFY_TOKEN }}/sendMessage" \
               -d "chat_id=${{ secrets.DEPLOY_NOTIFY_CHAT }}" \
               -d "parse_mode=Markdown" \
