@@ -10,8 +10,6 @@ services:
       - redis
     environment:
       REDIS_URL: ${REDIS_URL}
-    ports:
-      - "3001:3001"
     restart: always
 
   redis:
