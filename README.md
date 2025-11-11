@@ -1,5 +1,6 @@
 # 🚀 Telegram Vapor Bot — Infrastructure Demo
 
+![CI/CD](https://github.com/MKIMik/telegramvaporswiftbot-infrademo/actions/workflows/deploy.yml/badge.svg)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/MKIMik/telegramvaporswiftbot-infrademo/deploy.yml?label=CI/CD%20Deploy&logo=githubactions&style=for-the-badge)
 ![Docker](https://img.shields.io/badge/docker-ready-blue?logo=docker&style=for-the-badge)
 ![Redis](https://img.shields.io/badge/redis-active-red?logo=redis&style=for-the-badge)
@@ -28,6 +29,17 @@
 
 ---
 
+## 💡 О проекте
+
+Этот репозиторий демонстрирует DevOps-подход к работе с backend-сервисом:
+- автоматизация деплоя через GitHub Actions и SSH;
+- изолированная инфраструктура с Docker Compose;
+- healthcheck и уведомления о статусе в Telegram;
+- архитектура, подготовленная под расширение (Prometheus, Grafana, ArgoCD).
+
+Проект задуман как pet-практика для портфолио DevOps-инженера.
+
+
 ## 🏗️ Архитектура проекта
 
 Подробное описание архитектуры — в отдельном документе [`architecture.md`](architecture.md).  
@@ -47,3 +59,5 @@ cp .env.example .env
 
 # Собираем и запускаем контейнеры
 docker-compose up -d --build
+
+
