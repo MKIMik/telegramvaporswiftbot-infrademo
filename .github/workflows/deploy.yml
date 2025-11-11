@@ -1,0 +1,117 @@
+name: Smart Deploy with tmux & Healthcheck
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH (tmux-managed)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          timeout: 60m
+          script: |
+            # время начала деплоя
+            START_TIME=$(date +%s)
+            COMMIT="${{ github.sha }}"
+            COMMIT_SHORT=${COMMIT:0:7}
+
+            echo "🚀 Starting tmux deploy on $(hostname)"
+
+            if tmux has-session -t deploy 2>/dev/null; then
+              echo "⚙️ Killing previous deploy session..."
+              tmux kill-session -t deploy
+            fi
+
+            tmux new-session -d -s deploy '
+              set -e
+              cd /root/telegram-vapor-bot
+              echo "🧾 Updating repo..."
+              git fetch origin main
+              git reset --hard origin/main
+
+              echo "📄 Rebuilding .env..."
+              cat <<'"'"'EOF'"'"' > .env
+              BOT_TOKEN=${{ secrets.BOT_TOKEN }}
+              ADMIN_ID=${{ secrets.ADMIN_ID }}
+              SERVER_IP=${{ secrets.SERVER_IP }}
+              NGROK_URL=${{ secrets.NGROK_URL }}
+              REDIS_URL=redis://bot:${{ secrets.REDIS_PASSWORD }}@redis:6379
+              EOF
+
+              echo "🔐 Writing Redis ACL..."
+              cat > redis-users.acl <<'"'"'ACL'"'"'
+              user default off
+              user bot on >${{ secrets.REDIS_PASSWORD }} ~* +@read +@write +@stream -FLUSHALL -FLUSHDB -CONFIG -SHUTDOWN
+              ACL
+
+              echo "🐳 Rebuilding containers..."
+              docker compose down
+              docker compose up -d --build
+
+              echo "💓 Waiting for Redis..."
+              for i in {1..10}; do
+                if docker exec redis redis-cli -u "redis://bot:${{ secrets.REDIS_PASSWORD }}@localhost:6379" ping | grep -q PONG; then
+                  echo "✅ Redis ready"
+                  break
+                fi
+                echo "⏳ Waiting for Redis ($i/10)..."
+                sleep 3
+              done
+
+              echo "💡 Checking bot health..."
+              if curl -s http://localhost:3001 > /dev/null; then
+                STATUS="✅ Bot OK, webhook active"
+              else
+                STATUS="⚠️ Bot did not respond"
+              fi
+            '
+
+            echo "✅ tmux session launched. Waiting for completion..."
+            while tmux has-session -t deploy 2>/dev/null; do
+              echo "⏳ Deploy still running..."
+              sleep 20
+            done
+
+            # ← ЗДЕСЬ считаем длительность
+            END=$(date +%s)
+            DURATION=$((END - START))
+            MINS=$(( DURATION / 60 ))
+            SECS=$(( DURATION % 60 ))
+
+            # собираем статусы контейнеров
+            DOCKER_STATUS=$(docker compose ps --format '{{.Name}} {{.State}}' \
+              | sed 's/running/✅ running/; s/exited/❌ exited/; s/restarting/🔁 restarting/; s/created/🍼 created/; s/paused/⏸️ paused/; s/unknown/⚙️ unknown/')
+
+            # формируем сообщение
+            MSG=$(cat <<EOF
+            ✅ *Deployment complete!*
+
+            🧠 *Project:* telegram-vapor-bot
+            🕒 *Time:* $(date)
+            💻 *Host:* $(hostname)
+            🔗 *Commit:* $GITHUB_SHA
+            ⏱️ *Duration:* ${MINS}m ${SECS}s
+
+            📦 *Containers:*
+            \`\`\`
+            $DOCKER_STATUS
+            \`\`\`
+            $STATUS
+            EOF
+            )
+
+            # отправка в Telegram как было
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.DEPLOY_NOTIFY_TOKEN }}/sendMessage" \
+              -d "chat_id=${{ secrets.DEPLOY_NOTIFY_CHAT }}" \
+              -d "parse_mode=Markdown" \
+              --data-urlencode "text=$MSG" > /dev/null

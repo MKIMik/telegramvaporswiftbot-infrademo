@@ -1,0 +1,30 @@
+# Swift build artifacts
+.build/
+Packages/
+DerivedData/
+
+# Logs
+*.log
+*.out
+
+# macOS / Windows / system
+.DS_Store
+Thumbs.db
+
+# Environment and config
+.env
+redis-users.acl
+*.key
+*.pem
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# VSCode and IDE configs
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.swp
